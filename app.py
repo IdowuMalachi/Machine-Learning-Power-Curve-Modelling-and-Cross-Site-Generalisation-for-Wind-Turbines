@@ -12,7 +12,9 @@ import matplotlib.pyplot as plt
 from core import (RATED_KW, KNOWN_TURBINES, read_upload, guess_columns, standardise,
                   normal_operation_mask, choose_model, predict, scores)
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "power_models.joblib")
+HERE = os.path.dirname(os.path.abspath(__file__))
+# The model file may sit in a models/ folder or next to app.py (GitHub's web upload drops folders).
+MODEL_CANDIDATES = [os.path.join(HERE, "models", "power_models.joblib"), os.path.join(HERE, "power_models.joblib")]
 TRAIN_YEARS = range(2017, 2023)
 ACCENT, GREY = "#2a78d6", "#8a8a8a"
 
@@ -21,7 +23,14 @@ st.set_page_config(page_title="Wind Turbine Power Prediction", layout="wide")
 
 @st.cache_resource
 def load_models():
-    return joblib.load(MODEL_PATH)
+    for path in MODEL_CANDIDATES:
+        if os.path.exists(path):
+            return joblib.load(path)
+    st.error(
+        "The model file power_models.joblib was not found. Upload it to the repository, either in a folder "
+        "called models or next to app.py, then reboot the app."
+    )
+    st.stop()
 
 
 bundle = load_models()
