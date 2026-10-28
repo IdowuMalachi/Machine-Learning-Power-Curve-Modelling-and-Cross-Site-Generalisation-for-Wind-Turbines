@@ -1,75 +1,75 @@
 # Wind turbine power prediction app
 
-Upload 10-minute turbine data and get predicted power output from the gradient boosting model in the report
-*Predicting Wind Turbine Power Output in Future Years* (Idowu Malachi and Sharon Sarker, CSCI 6505, Fall 2026).
+Streamlit app for the CSCI 6505 project *Predicting Wind Turbine Power Output in Future Years*
+(Idowu Malachi and Sharon Sarker, Fall 2026). It uses the gradient boosting model from
+`Train_Chosen_Years.ipynb` (trained on Penmanshiel 2016, 2017, 2018, 2020, 2021, 2022).
 
-## Run it on your computer
+## Pages
 
-1. Install Python 3.10 or newer.
-2. Open a terminal in this folder and install the packages:
+| Page | What it does |
+|---|---|
+| Overview | Research question, study design, headline results |
+| Predict from data | Upload one or more CSVs, get predicted power, scores (MAE, RMSE, R², bias), predicted vs measured energy, power curve, error by wind speed / month / turbine, a day-by-day performance check (lost energy), the cleaning rules applied, and a CSV download |
+| What-if and energy | Set wind speed, direction, temperature, hour and turbine; see the predicted power curve, compare conditions, and estimate annual energy and capacity factor from a mean wind speed |
+| Model results | Cross-validation, test-year, per-turbine and input-importance results from the notebook |
+| Data and methods | Data, the seven cleaning rules, inputs, models, evaluation and limits |
+
+## Run it on your computer (Windows, Anaconda Prompt)
+
+1. Put this `wind_app` folder **inside** `C:\Users\idowu\POWER CURVE`, so it sits next to `results_split`.
+   The app then finds your own 14-turbine model (`results_split\power_models.joblib`) and your results tables
+   automatically.
+2. Install Streamlit in the `windml` environment:
    ```
-   pip install -r requirements.txt
+   conda activate windml
+   pip install streamlit
    ```
 3. Start the app:
    ```
+   cd "C:\Users\idowu\POWER CURVE\wind_app"
    streamlit run app.py
    ```
-   It opens in your browser at http://localhost:8501.
-4. Try it with `sample_penmanshiel13_jan2019.csv`.
+   It opens in your browser at http://localhost:8501. Stop it with Ctrl+C in the black window.
+4. Try it: tick *Use the sample* on the Predict page, or upload `..\cleaned\penmanshiel_2023_clean.csv`.
 
-`scikit-learn` is pinned to 1.9.1 because the saved model was built with that version; a different version may
-refuse to load it or give slightly different predictions. If you need another version, retrain (below).
+The sidebar shows which model is in use. If it lists turbines 1-15, it is your own model; if it lists 11-15, it is
+the fallback copy in `models\`.
 
 ## Put it online (Streamlit Community Cloud, free)
 
-1. Create a GitHub repository and upload every file in this folder, including `models/power_models.joblib`.
-2. Go to https://share.streamlit.io, sign in with GitHub, choose **Create app**, pick the repository and set the
-   main file to `app.py`.
-3. Deploy. You get a public link you can share.
+1. Copy your `results_split\power_models.joblib` into `models\`, replacing the file there, and copy your
+   `results_split\*.csv` files into a new folder `results_split` inside this folder.
+2. Upload every file in this folder to a GitHub repository (including `models`, `results_builtin` and
+   `.streamlit`).
+3. At https://share.streamlit.io choose **Create app**, pick the repository, main file `app.py`, and deploy.
 
 ## What you can upload
 
-- The cleaned yearly files, e.g. `penmanshiel_2019_clean.csv`.
-- A raw Greenbyte file straight from Zenodo, e.g. `Turbine_Data_Penmanshiel_01_2017-01-01_-_2018-01-01_1042.csv`
-  (unzipped). The turbine number is read from the file name.
-- Any CSV (comma or tab separated) with columns for time, wind speed (m/s), wind direction (degrees) and ambient
-  temperature (°C). Measured power, turbine number, pitch angle and a stopped flag are optional. The app guesses
-  which column is which; you can change its choices.
+- Cleaned yearly files, e.g. `penmanshiel_2023_clean.csv` (several at once is fine).
+- Raw Greenbyte files from Zenodo, unzipped, e.g. `Turbine_Data_Penmanshiel_12_2019-01-01_-_2020-01-01_1052.csv`;
+  the turbine number is read from the file name.
+- Any CSV with time, wind speed (m/s), wind direction (degrees) and temperature (°C). Power, turbine, pitch and a
+  stopped flag are optional. The app guesses the columns; you can change its choices.
 
-## What it does
+## Models
 
-- **Two models.** A turbine-aware model, used when every row is Penmanshiel turbine 11 to 15, and a general model
-  (wind speed, direction, temperature, hour of day) for any other turbine.
-- **Scoring.** When measured power is present it reports MAE, RMSE, R² and bias, optionally on normal operation
-  only, using the report's cleaning rules.
-- **Charts.** Power curve (measured and predicted), predicted against measured, daily power over time, and error
-  by month.
-- **Download.** A CSV with the predictions and, if power was given, the error for each row.
+- **Turbine-aware:** used when every row is one of the model's Penmanshiel turbines.
+- **General:** no turbine columns, for any other turbine. For another turbine type, enter its rotor diameter and
+  wind speed is rescaled by (diameter / 82 m)^(2/3); for Kelmarsh (92 m) this halves the error.
 
-## Limits
+Scores on the training years (2016-2018, 2020-2022) of Penmanshiel turbines are optimistic; the app warns you.
+Fair tests: 2019, 2023, 2024, or other turbines.
 
-- Trained on Penmanshiel turbines 11 to 15, 2017 to 2022 (Senvion MM82: 2,050 kW, 82 m rotor). Scores on those
-  turbines and years are optimistic, because the model has seen them.
-- Other turbine types are predicted with a Penmanshiel MM82 power curve, so expect large errors for different
-  turbines.
-- Check: on Penmanshiel turbine 1 in 2017, which the model never saw, the general model scored an MAE of 33.9 kW
-  (1.66% of rated) with a bias of +13.5 kW.
-
-## Retrain the models
-
-`train_models.py` rebuilds `models/power_models.joblib` from the cleaned yearly CSVs:
-```
-python train_models.py <folder with penmanshiel_<year>_clean.csv files>
-```
-Edit `YEARS` in the script to change the training years. Training takes a few minutes.
+`scikit-learn` must be 1.9.1, the version the model was saved with.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `app.py` | The Streamlit app |
-| `core.py` | Reading files, inputs, cleaning rules, prediction and scoring |
-| `train_models.py` | Retrains the models |
-| `models/power_models.joblib` | The trained models |
+| `app.py` | The app (five pages) |
+| `core.py` | Reading files, inputs, cleaning rules, prediction, scoring, energy |
+| `train_models.py` | Rebuilds `models/power_models.joblib` from the cleaned CSVs |
+| `models/power_models.joblib` | Fallback model (turbines 11-15, same years and settings) |
+| `results_builtin/` | Copy of the notebook's results tables, used when `results_split` is not found |
 | `sample_penmanshiel13_jan2019.csv` | A month of data to try |
-| `requirements.txt` | Python packages |
+| `.streamlit/config.toml` | Allows uploads up to 1 GB, sets the colour |
