@@ -1,0 +1,13 @@
+model,year,rows,MAE,RMSE,R2,bias
+Gradient boosting [D],2023,653331,31.0,,,4.1
+Gradient boosting [D],2024,248585,32.9,,,9.8
+Extra trees [D],2023,653331,31.6,,,4.1
+Extra trees [D],2024,248585,33.3,,,8.0
+Random forest [D],2023,653331,31.8,,,3.8
+Random forest [D],2024,248585,33.6,,,6.1
+Neural network [D],2023,653331,32.1,,,4.7
+Neural network [D],2024,248585,33.5,,,10.5
+Gradient boosting [B],2023,653331,33.1,,,3.1
+Gradient boosting [B],2024,248585,35.3,,,1.1
+Binned curve per turbine [A+turbine],2023,653331,38.2,,,4.9
+Binned curve per turbine [A+turbine],2024,248585,41.5,,,10.0
