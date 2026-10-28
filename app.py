@@ -20,13 +20,12 @@ import core
 from core import RATED_KW
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Your own notebook output comes first (all 14 turbines); the copy in models/ is the fallback.
-MODEL_CANDIDATES = [
-    os.path.join(HERE, "results_split", "power_models.joblib"),
-    os.path.join(HERE, "..", "results_split", "power_models.joblib"),
-    os.path.join(HERE, "models", "power_models.joblib"),
-    os.path.join(HERE, "power_models.joblib"),
-]
+# The report's design: these are the only training years a valid model may use.
+REPORT_TRAIN_YEARS = [2016, 2017, 2018, 2020, 2021, 2022]
+REPORT_TEST_YEARS = [2019, 2023, 2024]
+# Every .joblib in these folders is considered; models trained with a test year are ignored.
+MODEL_DIRS = [HERE, os.path.join(HERE, "models"), os.path.join(HERE, "results_split"),
+              os.path.join(HERE, "..", "results_split")]
 RESULT_CANDIDATES = {
     "Your notebook run (results_split, next to the app)": os.path.join(HERE, "results_split"),
     "Your notebook run (results_split, one folder up)": os.path.join(HERE, "..", "results_split"),
@@ -89,19 +88,35 @@ with st.sidebar:
                              "Data and methods"], label_visibility="collapsed")
     st.divider()
 
-    bundle, bundle_key = None, None
+    bundle, bundle_key, note = None, None, ""
     upload_model = st.file_uploader("Use a different model file (optional)", type=["joblib"],
                                     help="The power_models.joblib saved by Train_Chosen_Years.ipynb, in results_split.")
     if upload_model is not None:
         bundle, bundle_key = load_bundle_from_bytes(upload_model.getvalue()), "upload:" + upload_model.name
     else:
-        for p in MODEL_CANDIDATES:
-            if os.path.exists(p):
-                bundle, bundle_key = load_bundle_from_path(p), os.path.abspath(p)
-                break
+        valid, rejected = [], []
+        for path in sorted({os.path.abspath(p) for d in MODEL_DIRS for p in glob.glob(os.path.join(d, "*.joblib"))}):
+            try:
+                b = load_bundle_from_path(path)
+                years = core.bundle_train_years(b)
+            except Exception:  # noqa: BLE001  (not a model file, or a different scikit-learn version)
+                rejected.append(os.path.relpath(path, HERE))
+                continue
+            if any(y in years for y in REPORT_TEST_YEARS):
+                rejected.append(os.path.relpath(path, HERE))
+            else:
+                valid.append((len(core.bundle_turbines(b)), path, b))
+        if valid:
+            _, bundle_key, bundle = max(valid, key=lambda v: v[0])   # the model covering the most turbines
+        if rejected:
+            note = ("Ignored (old model trained with a test year, or unreadable): "
+                    + ", ".join(f"`{r}`" for r in rejected) + ". You can delete these.")
 
     if bundle is None:
-        st.error("No model file found. Put power_models.joblib in the models folder, or upload it above.")
+        st.error("No valid model file found. Upload power_models.joblib from your results_split folder to the "
+                 "repository (next to app.py or in models), or upload it above.")
+        if note:
+            st.caption(note)
         st.stop()
 
     TURBINES = core.bundle_turbines(bundle)
@@ -110,7 +125,13 @@ with st.sidebar:
     st.caption("**Model in use**")
     st.caption(f"Gradient boosting, trained on Penmanshiel turbines {', '.join(map(str, TURBINES))}, "
                f"years {', '.join(map(str, TRAIN_YEARS))} ({info.get('rows', 0):,} rows).")
-    st.caption(f"scikit-learn {info.get('sklearn_version', '?')}")
+    shown = "uploaded in the sidebar" if bundle_key.startswith("upload:") else os.path.relpath(bundle_key, HERE)
+    st.caption(f"File: `{shown}` · scikit-learn {info.get('sklearn_version', '?')}")
+    if any(y in TRAIN_YEARS for y in REPORT_TEST_YEARS):
+        st.warning("This uploaded model was trained with " + ", ".join(
+            str(y) for y in REPORT_TEST_YEARS if y in TRAIN_YEARS) + ", which the report keeps for testing.")
+    if note:
+        st.caption(note)
 
 
 def turbine_label(k):
@@ -145,8 +166,9 @@ def page_overview():
             "10-minute SCADA records 2016-2024, open on Zenodo (Cubico, CC-BY-4.0).\n"
             "2. **Cleaning.** Seven rules keep only normal operation: logged stops, missing and impossible values, "
             "non-producing, pitched-out, capped and outlier rows are removed.\n"
-            "3. **Split by year.** Training years 2016, 2017, 2018, 2020, 2021, 2022. Test years 2023 and 2024 are "
-            "never used to choose anything.\n"
+            "3. **Split by year.** Training years 2016, 2017, 2018, 2020, 2021, 2022. 2019, 2023 and 2024 are "
+            "never used for training or for choosing anything; 2023 and 2024 are the reported test years, and "
+            "2019 is an extra unseen year you can test in the app.\n"
             "4. **Model selection.** Leave-one-year-out cross-validation inside the training years: each training "
             "year is held out in turn, so whole seasons are tested and neighbouring rows never straddle a split.\n"
             "5. **Final test.** The chosen model is refitted on all training years and scored on each test year, per "
@@ -155,13 +177,13 @@ def page_overview():
     with right:
         fig, ax = plt.subplots(figsize=(4.6, 2.6))
         years = list(range(2016, 2025))
-        colors = [BLUE if y in TRAIN_YEARS else (ORANGE if y in (2023, 2024) else "#d0d0d0") for y in years]
+        colors = [BLUE if y in REPORT_TRAIN_YEARS else ORANGE for y in years]
         ax.bar([str(y) for y in years], [1] * len(years), color=colors)
         ax.set_yticks([])
         ax.grid(False)
         for s in ["left"]:
             ax.spines[s].set_visible(False)
-        ax.set_title("Blue: training · orange: test · grey: not used")
+        ax.set_title("Blue: training · orange: unseen (test)")
         plt.xticks(rotation=45)
         plt.tight_layout()
         fig_out(fig)
@@ -734,7 +756,7 @@ def page_methods():
     st.subheader("Evaluation")
     st.markdown(
         "- **Model selection:** leave-one-year-out cross-validation inside the training years.\n"
-        "- **Final test:** years never used for any choice (2023, 2024).\n"
+        "- **Final test:** years never used for training or any choice: 2023 and 2024 in the report, and 2019 as an extra unseen year.\n"
         "- **Scores:** MAE (main), RMSE, R² and bias (predicted − measured), in kW and % of rated power."
     )
     st.subheader("Limits")

@@ -33,12 +33,15 @@ Streamlit app for the CSCI 6505 project *Predicting Wind Turbine Power Output in
 4. Try it: tick *Use the sample* on the Predict page, or upload `..\cleaned\penmanshiel_2023_clean.csv`.
 
 The sidebar shows which model is in use. If it lists turbines 1-15, it is your own model; if it lists 11-15, it is
-the fallback copy in `models\`.
+the fallback in `models\`. Either way the training years are 2016-2018 and 2020-2022.
 
 ## Put it online (Streamlit Community Cloud, free)
 
-1. Copy your `results_split\power_models.joblib` into `models\`, replacing the file there, and copy your
-   `results_split\*.csv` files into a new folder `results_split` inside this folder.
+1. Upload your `results_split\power_models.joblib` to the repository (next to `app.py` or in `models`; any file
+   name ending in `.joblib` works). The app looks at every `.joblib` file, **ignores any model trained with 2019,
+   2023 or 2024** (such as the first app's old model), and uses the valid model that covers the most turbines,
+   so your 14-turbine model wins over the built-in fallback. You may also copy your `results_split\*.csv` files
+   into a folder `results_split` inside this folder.
 2. Upload every file in this folder to a GitHub repository (including `models`, `results_builtin` and
    `.streamlit`).
 3. At https://share.streamlit.io choose **Create app**, pick the repository, main file `app.py`, and deploy.
@@ -68,8 +71,8 @@ Fair tests: 2019, 2023, 2024, or other turbines.
 |---|---|
 | `app.py` | The app (five pages) |
 | `core.py` | Reading files, inputs, cleaning rules, prediction, scoring, energy |
-| `train_models.py` | Rebuilds `models/power_models.joblib` from the cleaned CSVs |
-| `models/power_models.joblib` | Fallback model (turbines 11-15, same years and settings) |
+| `train_models.py` | Rebuilds the fallback model from the cleaned CSVs |
+| `models/penmanshiel_gb_2016-2022_no2019.joblib` | Fallback model (turbines 11-15, trained 2016-2018 and 2020-2022, same settings) |
 | `results_builtin/` | Copy of the notebook's results tables, used when `results_split` is not found |
 | `sample_penmanshiel13_jan2019.csv` | A month of data to try |
 | `.streamlit/config.toml` | Allows uploads up to 1 GB, sets the colour |

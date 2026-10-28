@@ -38,5 +38,5 @@ bundle["info"] = {"trained_on": f"Penmanshiel turbines {turbines}, cleaned, year
                   "sklearn_version": sklearn.__version__, "turbines": turbines, "train_years": TRAIN_YEARS,
                   "model": "HistGradientBoostingRegressor (lr 0.02, 31 leaves, 1500 trees, min leaf 200, L2 1.0)"}
 os.makedirs(os.path.join(HERE, "models"), exist_ok=True)
-joblib.dump(bundle, os.path.join(HERE, "models", "power_models.joblib"), compress=3)
+joblib.dump(bundle, os.path.join(HERE, "models", "penmanshiel_gb_2016-2022_no2019.joblib"), compress=3)
 print(json.dumps(bundle["info"]))
