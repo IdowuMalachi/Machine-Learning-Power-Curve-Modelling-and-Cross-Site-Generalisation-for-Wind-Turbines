@@ -284,9 +284,10 @@ def page_predict():
     seen_years = [y for y in years if y in TRAIN_YEARS]
     seen_turb = "turbine" in df and df["turbine"].isin(TURBINES).any()
     if seen_years and seen_turb:
-        st.warning(f"Years {', '.join(map(str, seen_years))} of Penmanshiel turbines were used to train the model, "
-                   "so scores on them are optimistic. For a fair test, use another year (2019, 2023, 2024) "
-                   "or another turbine.")
+        fair = [y for y in range(2016, 2025) if y not in TRAIN_YEARS]
+        st.warning(f"The model in use was trained on {', '.join(map(str, seen_years))} data from Penmanshiel "
+                   f"turbines, so scores on that data are optimistic. For a fair test, use a year this model has "
+                   f"not seen ({', '.join(map(str, fair))}) or another turbine.")
 
     scored = df
     if has_power:
